@@ -103,7 +103,7 @@ class WatershedApp:
         gray_blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
         # Step 4: Apply CLAHE for local contrast enhancement
-        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+        clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8)) 
         enhanced_image = clahe.apply(gray_blurred)
 
         # Step 5: Thresholding to isolate bright regions (tumors)
