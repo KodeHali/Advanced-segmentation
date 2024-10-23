@@ -16,19 +16,19 @@ class ActiveContourApp:
         self.root.title("Active Contour Segmentation GUI")
         self.root.geometry("800x600")
 
-        # Upload image button
+        # Upload button
         self.upload_btn = Button(self.root, text="Upload Image", command=self.upload_image, padx=20, pady=10)
         self.upload_btn.pack(pady=10)
 
-        # Manual Contour button for user-defined contour
+        # Manual button
         self.manual_contour_btn = Button(self.root, text="Manual Contour (Click & Drag)", command=self.enable_manual_contour, padx=20, pady=10)
         self.manual_contour_btn.pack(pady=10)
 
-        # Automatic Contour button for auto-initialized contour (just placing it, not running)
+        # Auto button
         self.auto_contour_btn = Button(self.root, text="Auto Contour", command=self.place_auto_contour, padx=20, pady=10)
         self.auto_contour_btn.pack(pady=10)
 
-        # Apply Active Contour button
+        # Apply button
         self.active_contour_btn = Button(self.root, text="Apply Active Contour", command=self.apply_active_contour, padx=20, pady=10)
         self.active_contour_btn.pack(pady=10)
 
@@ -36,7 +36,7 @@ class ActiveContourApp:
         self.reset_btn = Button(self.root, text="Reset", command=self.reset_image, padx=20, pady=10)
         self.reset_btn.pack(pady=10)
 
-        # Create a Canvas to display the image in the GUI
+        # Using a canvas to display the processed image
         self.image_canvas = Canvas(self.root, bg="white")
         self.image_canvas.pack(fill=BOTH, expand=YES)
 
@@ -47,37 +47,33 @@ class ActiveContourApp:
         self.is_manual_mode = False
         self.scaling_factor = 1.0
 
-        # Variables for click-and-drag circle drawing
+        # For the contour circles. 
         self.start_x = None
         self.start_y = None
         self.radius = None
 
-        # Bind the mouse events for drawing the circle
         self.image_canvas.bind("<ButtonPress-1>", self.on_mouse_down)
         self.image_canvas.bind("<B1-Motion>", self.on_mouse_drag)
         self.image_canvas.bind("<ButtonRelease-1>", self.on_mouse_up)
 
     def upload_image(self):
-        """Upload and display the image, and adjust the window size to match the image dimensions."""
+        """Upload and display image."""
         self.image_path = filedialog.askopenfilename()
         if self.image_path:
             self.original_image = cv2.imread(self.image_path)
             image_height, image_width = self.original_image.shape[:2]
 
-            # Adjust the size of the GUI to match the size of the image
             self.root.geometry(f"{image_width}x{image_height}")
             self.display_image(self.original_image)
 
     def display_image(self, image):
-        """Display the image in the Tkinter canvas (GUI)"""
-        canvas_width = self.image_canvas.winfo_width()
-        canvas_height = self.image_canvas.winfo_height()
+        """Display the image in canvas"""
         image_height, image_width = image.shape[:2]
 
-        # Match the canvas size to the image size (no scaling)
+        # I put the canvas in the bottom left due to scaling / dimension issues 
         self.image_canvas.config(width=image_width, height=image_height)
 
-        # Display the image as is, without scaling
+        # Displaying image
         image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         pil_image = Image.fromarray(image_rgb)
         self.tk_image = ImageTk.PhotoImage(pil_image)
@@ -85,61 +81,59 @@ class ActiveContourApp:
         self.image_canvas.create_image(0, 0, anchor=NW, image=self.tk_image)
 
     def enable_manual_contour(self):
-        """Enable manual contour mode (click and drag)."""
+        """Enable manual contour mode"""
         if self.image_path is None:
             messagebox.showerror("Error", "Please upload an image first.")
             return
         self.is_manual_mode = True
-        self.initial_contour = []  # Clear any previously placed contours
+        self.initial_contour = []  # Clearing the previous contours if there are any
         messagebox.showinfo("Manual Contour Mode", "Click and drag to create a circle.")
 
     def on_mouse_down(self, event):
-        """Capture the starting point when the mouse button is pressed."""
+        """Capturing the first click"""
         if self.is_manual_mode:
             self.start_x = event.x
             self.start_y = event.y
 
     def on_mouse_drag(self, event):
-        """Update the circle radius dynamically as the mouse is dragged."""
+        """Updating circle radius on the cavnas"""
         if self.is_manual_mode and self.start_x is not None and self.start_y is not None:
-            # Calculate the radius based on the distance from the start point to the current mouse position
+            # Calculating radius based on start -> mouse location
             current_x = event.x
             current_y = event.y
             self.radius = int(math.sqrt((current_x - self.start_x) ** 2 + (current_y - self.start_y) ** 2))
 
-            # Redraw the image with the current circle
+            # Redrawing image with the circle
             self.display_image_with_circle(self.start_x, self.start_y, self.radius)
 
     def on_mouse_up(self, event):
-        """Finalize the circle when the mouse button is released."""
+        """Finalize the circle when the mouse button is released"""
         if self.is_manual_mode and self.start_x is not None and self.start_y is not None:
-            # Convert the canvas coordinates to image coordinates and store the final contour
+            # converting canvas to image contours and storing coordinates
             image_start_x = int(self.start_x)
             image_start_y = int(self.start_y)
             image_radius = int(self.radius)
 
-            # Generate circle points as the initial contour (using parametric equation of a circle)
+            # Generate circle points as the initial contour
             self.initial_contour = [(image_start_x + image_radius * np.cos(t), image_start_y + image_radius * np.sin(t)) 
                                     for t in np.linspace(0, 2 * np.pi, 100)]
             
-            # Redraw the final image with the contour
+            # Redrawing the finak image 
             self.display_image_with_circle(self.start_x, self.start_y, self.radius)
 
     def display_image_with_circle(self, center_x, center_y, radius):
         """Display the image with the current circle being drawn."""
         result_image = self.original_image.copy()
         cv2.circle(result_image, (center_x, center_y), radius, (0, 0, 255), 2)
-
-        # Display the image in the GUI
         self.display_image(result_image)
 
     def place_auto_contour(self):
-        """Automatically place an initial contour (without running the algorithm)."""
+        """Automatically place initial contours."""
         if self.image_path is None:
             messagebox.showerror("Error", "Please upload an image first.")
             return
 
-        # Automatically define a circular contour around the center of the image
+        # automatically definr a circular contour around the center of the image
         h, w = self.original_image.shape[:2]
         center = (w // 2, h // 2)
         radius = min(h, w) // 4
@@ -154,7 +148,7 @@ class ActiveContourApp:
 
 
     def apply_active_contour(self):
-        """Apply the active contour segmentation after placing either manual or auto contour."""
+        """Apply algorithm with either contour (mnaual or auto)."""
         if self.image_path is None or not self.initial_contour:
             messagebox.showerror("Error", "Please upload an image and define an initial contour.")
             return
@@ -167,36 +161,36 @@ class ActiveContourApp:
 
         # Define a refined set of 12 parameter combinations based on the best-performing ones
         param_sets = [
-            (0.008, 0.015, 0.03, 3),  # Slight decrease in `alpha` and `beta` for more flexibility
+            (0.008, 0.015, 0.03, 3),  # We've narrowed down the most efficient parameters to this set
             (0.008, 0.015, 0.03, 5),  
-            (0.01, 0.015, 0.03, 3),   # Keep `alpha` same, decrease `beta` slightly
+            (0.01, 0.015, 0.03, 3),  
             (0.01, 0.015, 0.03, 5),   
-            (0.01, 0.02, 0.025, 3),   # Decrease `gamma` slightly for less sensitivity
+            (0.01, 0.02, 0.025, 3), 
             (0.01, 0.02, 0.025, 5),   
-            (0.012, 0.02, 0.03, 3),   # Increase `alpha` slightly to test more responsiveness
+            (0.012, 0.02, 0.03, 3), 
             (0.012, 0.02, 0.03, 5),   
-            (0.01, 0.025, 0.03, 3),   # Increase `beta` slightly for smoother deformation
+            (0.01, 0.025, 0.03, 3), 
             (0.01, 0.025, 0.03, 5),   
-            (0.012, 0.025, 0.03, 3),  # Balance higher `alpha` with slightly higher `beta`
+            (0.012, 0.025, 0.03, 3),  
             (0.012, 0.025, 0.03, 5)
         ]
 
 
 
-        # Prepare a 3x4 subplot grid to display all 12 combinations
+        # Display all the figures
         fig, axes = plt.subplots(nrows=3, ncols=4, figsize=(16, 12))
 
-        # Flatten the axes array to avoid index issues
+        # Avpoiding index issues
         axes = axes.flatten()
 
-        # Process each parameter set and print them in the terminal
+        # Running for all sets (and printing them due to some confusion during tests)
         for i, (alpha, beta, gamma, sigma) in enumerate(param_sets):
             print(f"Processing set {i + 1}: alpha={alpha}, beta={beta}, gamma={gamma}, sigma={sigma}")
 
-            # Apply Gaussian smoothing with the specified sigma
+            # Applying Gaussian smoothing
             img_smoothed = gaussian(img_gray, sigma=sigma, preserve_range=False)
 
-            # Apply active contour algorithm
+            # algorithm
             snake = active_contour(img_smoothed, initial_contour_np, alpha=alpha, beta=beta, gamma=gamma)
 
             # Plot the result in the corresponding subplot
@@ -212,8 +206,8 @@ class ActiveContourApp:
     def reset_image(self):
         """Reset the image and the initial contour."""
         if self.original_image is not None:
-            self.initial_contour = []  # Clear the contour points
-            self.is_manual_mode = False  # Reset to non-manual mode
+            self.initial_contour = []  
+            self.is_manual_mode = False # resetting
             self.display_image(self.original_image)
 
 
